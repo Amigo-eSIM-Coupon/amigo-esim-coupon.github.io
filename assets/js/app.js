@@ -1,120 +1,165 @@
-/* ════════════════════════════════════════
-   AMIGO eSIM — Global JavaScript
-   app.js
-════════════════════════════════════════ */
+/* ============================================================
+   AMIGO eSIM DEALS – Global JavaScript
+   assets/js/app.js
+   ============================================================ */
 
-/* ── Copy Coupon Code ── */
-function copyCode(code, btn) {
-  navigator.clipboard.writeText(code).then(function () {
-    var orig = btn.textContent;
-    btn.textContent = '✓ Copied!';
-    btn.style.background = '#e8005c';
-    btn.style.color = '#fff';
-    btn.style.borderColor = '#e8005c';
-    setTimeout(function () {
-      btn.textContent = orig;
-      btn.style.background = '';
-      btn.style.color = '';
-      btn.style.borderColor = '';
-    }, 1800);
+/* ── Copy coupon code to clipboard ── */
+function copyCode(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text.trim()).then(() => {
+    const btn = el.nextElementSibling;
+    if (btn && btn.classList.contains('copy-btn')) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  }).catch(() => {
+    /* Fallback for older browsers */
+    const range = document.createRange();
+    range.selectNode(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
   });
 }
 
-/* ── Mobile Nav Toggle ── */
+/* ── Mobile nav toggle ── */
 function toggleMobileNav() {
-  var nav = document.getElementById('mobileNav');
-  if (nav) nav.classList.toggle('open');
+  const nav  = document.getElementById('mobileNav');
+  const btn  = document.getElementById('hamburger');
+  if (!nav) return;
+  const open = nav.classList.toggle('open');
+  if (btn) btn.textContent = open ? '✕' : '☰';
 }
 
-/* ── Guides Dropdown ── */
-function toggleDropdown(event) {
-  event.stopPropagation();
-  var dd = document.getElementById('guidesDropdown');
-  if (dd) dd.classList.toggle('open');
+/* ── Guides dropdown toggle ── */
+function toggleDropdown() {
+  const menu   = document.getElementById('dropdownMenu');
+  const toggle = document.querySelector('.dropdown-toggle');
+  if (!menu) return;
+  const open = menu.classList.toggle('open');
+  if (toggle) toggle.classList.toggle('active', open);
 }
+
 function closeDropdown() {
-  var dd = document.getElementById('guidesDropdown');
-  if (dd) dd.classList.remove('open');
+  const menu   = document.getElementById('dropdownMenu');
+  const toggle = document.querySelector('.dropdown-toggle');
+  if (menu)   menu.classList.remove('open');
+  if (toggle) toggle.classList.remove('active');
 }
-document.addEventListener('click', function (e) {
-  var dd = document.getElementById('guidesDropdown');
-  if (dd && !dd.contains(e.target)) closeDropdown();
+
+/* Close dropdown when clicking outside */
+document.addEventListener('click', (e) => {
+  const dropdown = document.querySelector('.nav-dropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    closeDropdown();
+  }
 });
 
-/* ── Scroll Reveal ── */
-function initReveal() {
-  var observer = new IntersectionObserver(
-    function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) e.target.classList.add('visible');
-      });
-    },
-    { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
-  );
-  document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(function (el) {
-    observer.observe(el);
+/* ── Set active nav link ── */
+function setActiveNav() {
+  const path     = window.location.pathname;
+  const filename = path.split('/').pop() || 'index.html';
+  const isGuide  = path.includes('/guides/');
+  const isBlog   = path.includes('/blog/');
+
+  document.querySelectorAll('.main-nav > a').forEach(link => {
+    link.classList.remove('active');
+    const href = link.getAttribute('href') || '';
+    const hFile = href.split('/').pop();
+
+    if (hFile === filename && !isBlog && !isGuide) {
+      link.classList.add('active');
+    }
+    if ((isBlog  || isGuide) && (href.includes('blog') || href === 'blog/index.html')) {
+      link.classList.add('active');
+    }
+  });
+
+  /* Highlight dropdown toggle when on a guide page */
+  if (isGuide) {
+    const toggle = document.querySelector('.dropdown-toggle');
+    if (toggle) toggle.classList.add('active');
+  }
+
+  /* Highlight active link inside the dropdown menu */
+  document.querySelectorAll('.dropdown-menu a').forEach(link => {
+    link.classList.remove('active');
+    const href  = link.getAttribute('href') || '';
+    const hFile = href.split('/').pop();
+    if (hFile === filename) {
+      link.classList.add('active');
+    }
   });
 }
 
-/* ── Set Active Nav Link ── */
-function setActiveNav() {
-  var path = window.location.pathname;
-  var filename = path.split('/').pop();
-  if (!filename || filename === '') filename = 'index.html';
+/* ── IntersectionObserver reveal ── */
+function initReveal() {
+  const items = document.querySelectorAll('.reveal');
+  if (!items.length) return;
 
-  document.querySelectorAll('.hnav-link').forEach(function (link) {
-    link.classList.remove('active');
-    var href = link.getAttribute('href');
-    if (!href) return;
-    var hrefFile = href.split('/').pop();
-    if (!hrefFile || hrefFile === '') hrefFile = 'index.html';
-    if (hrefFile === filename) link.classList.add('active');
-  });
-
-  // Mobile nav active
-  document.querySelectorAll('.mobile-nav-link').forEach(function (link) {
-    link.classList.remove('active');
-    var href = link.getAttribute('href');
-    if (!href) return;
-    var hrefFile = href.split('/').pop();
-    if (!hrefFile || hrefFile === '') hrefFile = 'index.html';
-    if (hrefFile === filename) link.classList.add('active');
-  });
-
-  // Guides dropdown active if on a guide page
-  var guidePages = ['activate-iphone-android.html','esim-vs-roaming-vs-local-sim.html','how-to-choose-right-plan.html'];
-  var guideBtn = document.querySelector('.hnav-dropdown-btn');
-  if (guideBtn && guidePages.indexOf(filename) !== -1) {
-    guideBtn.classList.add('active');
-  }
-
-  // Blog sub-pages highlight Blog nav link
-  var blogPages = ['best-esim-europe.html','best-esim-japan.html','best-esim-usa.html'];
-  if (blogPages.indexOf(filename) !== -1) {
-    document.querySelectorAll('.hnav-link').forEach(function(link) {
-      if (link.getAttribute('href') && link.getAttribute('href').indexOf('blog') !== -1) {
-        link.classList.add('active');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
       }
     });
-  }
+  }, { threshold: 0.12 });
+
+  items.forEach(el => observer.observe(el));
 }
 
-/* ── Smooth Scroll for In-Page Anchors ── */
+/* ── Smooth scroll for on-page anchors ── */
 function initSmoothScroll() {
-  document.querySelectorAll('a[href^="#"]').forEach(function (a) {
-    a.addEventListener('click', function (e) {
-      var target = document.querySelector(this.getAttribute('href'));
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', (e) => {
+      const target = document.querySelector(anchor.getAttribute('href'));
       if (target) {
         e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const offset = 80;
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
       }
     });
   });
 }
 
-/* ── Init ── */
-document.addEventListener('DOMContentLoaded', function () {
-  initReveal();
+/* ── Close mobile nav on link click ── */
+function initMobileNavClose() {
+  document.querySelectorAll('.mobile-nav a').forEach(link => {
+    link.addEventListener('click', () => {
+      const nav = document.getElementById('mobileNav');
+      const btn = document.getElementById('hamburger');
+      if (nav) nav.classList.remove('open');
+      if (btn) btn.textContent = '☰';
+    });
+  });
+}
+
+/* ── Sticky header shadow ── */
+function initHeaderScroll() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  window.addEventListener('scroll', () => {
+    header.style.boxShadow = window.scrollY > 10
+      ? '0 4px 24px rgba(0,95,249,0.12)'
+      : '0 2px 16px rgba(0,95,249,0.07)';
+  }, { passive: true });
+}
+
+/* ── Init all on DOM ready ── */
+document.addEventListener('DOMContentLoaded', () => {
   setActiveNav();
+  initReveal();
   initSmoothScroll();
+  initMobileNavClose();
+  initHeaderScroll();
 });
