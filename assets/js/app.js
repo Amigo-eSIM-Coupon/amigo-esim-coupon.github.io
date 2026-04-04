@@ -1,172 +1,194 @@
 /* ============================================================
-   AMIGO eSIM — Global JS
-   New affiliate link: https://esimbros.com/go/amigo-esim
+   AMIGO eSIM — app.js (for separate HTML pages only)
+   The SPA uses its own inline script — this file handles
+   the standalone pages: review.html, pricing.html, etc.
    ============================================================ */
 
-var AFFILIATE_URL = 'https://esimbros.com/go/amigo-esim';
+const AFFILIATE_URL = 'https://esimbros.com/go/amigo-esim';
+const COUPON_CODE   = 'ESIMDUDE';
 
-/* ── Update all affiliate links on page load ── */
-function updateAffiliateLinks() {
-  document.querySelectorAll('a[href*="amigoesim.pxf.io"], a[href*="amigo-esim"]').forEach(function(a) {
-    if (a.href && a.href.indexOf('esimbros.com') === -1) {
-      a.href = AFFILIATE_URL;
+/* ── Copy coupon code ──────────────────────────────────────── */
+function copyCode(code, btn) {
+  const codeVal = (typeof code === 'string') ? code : COUPON_CODE;
+  const button  = btn || (typeof code === 'object' ? code : null);
+  navigator.clipboard.writeText(codeVal).then(() => {
+    if (button) {
+      const orig = button.textContent;
+      button.textContent = '✓ Copied!';
+      button.style.background = '#e8005c';
+      button.style.color = '#fff';
+      button.style.borderColor = '#e8005c';
+      setTimeout(() => {
+        button.textContent = orig;
+        button.style.background = '';
+        button.style.color = '';
+        button.style.borderColor = '';
+      }, 1800);
     }
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = codeVal;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
   });
 }
 
-/* ── Copy coupon code ── */
-function copyCode(codeOrId, btn) {
-  var text;
-  var el = document.getElementById(codeOrId);
-  if (el) {
-    text = (el.innerText || el.textContent).trim();
-  } else {
-    text = String(codeOrId).trim();
+/* ── Dropdown toggle ───────────────────────────────────────── */
+function toggleDropdown(id) {
+  const menu   = document.getElementById(id);
+  const toggle = document.querySelector(`[data-dropdown="${id}"]`);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    menu.classList.add('open');
+    if (toggle) toggle.classList.add('open');
   }
-  navigator.clipboard.writeText(text).then(function() {
-    if (!btn) return;
-    var orig = btn.textContent;
-    var origBg = btn.style.background;
-    var origColor = btn.style.color;
-    var origBorder = btn.style.borderColor;
-    btn.textContent = '✓ Copied!';
-    btn.style.background = '#e8005c';
-    btn.style.color = '#fff';
-    btn.style.borderColor = '#e8005c';
-    setTimeout(function() {
-      btn.textContent = orig;
-      btn.style.background = origBg;
-      btn.style.color = origColor;
-      btn.style.borderColor = origBorder;
-    }, 1800);
-  }).catch(function() {
-    if (el) {
-      var r = document.createRange();
-      r.selectNode(el);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(r);
-      document.execCommand('copy');
-      window.getSelection().removeAllRanges();
-    }
-  });
 }
 
-/* ── Guides dropdown ── */
-function toggleDropdown(event) {
-  if (event) event.stopPropagation();
-  var dd = document.getElementById('dropdownMenu') || document.getElementById('guidesDropdown');
-  var toggle = document.querySelector('.dropdown-toggle, .hnav-dropdown-btn');
-  if (!dd) return;
-  var open = dd.classList.toggle('open');
-  if (toggle) toggle.classList.toggle('active', open);
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.dropdown-toggle').forEach(t => t.classList.remove('open'));
 }
-function closeDropdown() {
-  var dd = document.getElementById('dropdownMenu') || document.getElementById('guidesDropdown');
-  var toggle = document.querySelector('.dropdown-toggle, .hnav-dropdown-btn');
-  if (dd) dd.classList.remove('open');
-  if (toggle) toggle.classList.remove('active');
-}
-document.addEventListener('click', function(e) {
-  var dropdown = document.querySelector('.nav-dropdown, .hnav-dropdown');
-  if (dropdown && !dropdown.contains(e.target)) closeDropdown();
-});
 
-/* ── Mobile nav ── */
+/* ── Mobile nav ────────────────────────────────────────────── */
 function toggleMobileNav() {
-  var nav = document.getElementById('mobileNav');
-  var btn = document.getElementById('hamburger');
+  const nav = document.getElementById('mobileNav');
+  const ham = document.getElementById('hamburger');
   if (!nav) return;
-  var open = nav.classList.toggle('open');
-  if (btn) btn.textContent = open ? '✕' : '☰';
+  const isOpen = nav.classList.contains('open');
+  nav.classList.toggle('open', !isOpen);
+  if (ham) ham.classList.toggle('open', !isOpen);
+  document.body.style.overflow = isOpen ? '' : 'hidden';
 }
+
 function closeMobileNav() {
-  var nav = document.getElementById('mobileNav');
-  var btn = document.getElementById('hamburger');
+  const nav = document.getElementById('mobileNav');
+  const ham = document.getElementById('hamburger');
   if (nav) nav.classList.remove('open');
-  if (btn && btn.tagName === 'BUTTON') btn.textContent = '☰';
+  if (ham) ham.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
-/* ── Active nav ── */
+/* ── Device tabs ───────────────────────────────────────────── */
+function switchTab(tabId) {
+  document.querySelectorAll('.device-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.device-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById(tabId);
+  const tab   = document.querySelector(`[data-tab="${tabId}"]`);
+  if (panel) panel.classList.add('active');
+  if (tab)   tab.classList.add('active');
+}
+
+/* ── FAQ accordion ─────────────────────────────────────────── */
+function initFAQ() {
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
+    });
+  });
+}
+
+/* ── Active nav link ───────────────────────────────────────── */
 function setActiveNav() {
-  var path = window.location.pathname;
-  var filename = path.split('/').pop() || 'index.html';
-  var isGuide = path.includes('/guides/');
-  var isBlog = path.includes('/blog/');
-
-  document.querySelectorAll('.main-nav > a, .nav-links-row .nav-pill, .hnav-link[data-page]').forEach(function(link) {
-    link.classList.remove('active');
-    var href = link.getAttribute('href') || link.dataset.page || '';
-    var hFile = href.split('/').pop();
-    if (hFile === filename && !isBlog && !isGuide) link.classList.add('active');
-    if ((isBlog || isGuide) && (href.includes('blog') || href === 'blog/index.html')) link.classList.add('active');
-  });
-
-  if (isGuide) {
-    var toggle = document.querySelector('.dropdown-toggle, .hnav-dropdown-btn');
-    if (toggle) toggle.classList.add('active');
-  }
-
-  document.querySelectorAll('.dropdown-menu a, .hnav-dropdown-item').forEach(function(link) {
-    link.classList.remove('active');
-    var href = link.getAttribute('href') || '';
-    var hFile = href.split('/').pop();
-    if (hFile === filename) link.classList.add('active');
+  const path = window.location.pathname;
+  document.querySelectorAll('a.nav-pill, .dropdown-menu a, #mobileNav a').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (href && path.endsWith(href.replace('../', '').replace('./', ''))) {
+      a.classList.add('active');
+    }
   });
 }
 
-/* ── Reveal on scroll ── */
+/* ── Reveal on scroll ──────────────────────────────────────── */
 function initReveal() {
-  var items = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
-  if (!items.length) return;
-  var observer = new IntersectionObserver(function(entries) {
-    entries.forEach(function(entry) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
+  const els = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+  if (!els.length) return;
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        obs.unobserve(e.target);
       }
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-  items.forEach(function(el) { observer.observe(el); });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+  els.forEach(el => obs.observe(el));
 }
 
-/* ── Smooth scroll ── */
+/* ── Smooth scroll ─────────────────────────────────────────── */
 function initSmoothScroll() {
-  document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
-    anchor.addEventListener('click', function(e) {
-      var target = document.querySelector(anchor.getAttribute('href'));
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
       if (target) {
         e.preventDefault();
-        var top = target.getBoundingClientRect().top + window.scrollY - 70;
-        window.scrollTo({ top: top, behavior: 'smooth' });
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   });
 }
 
-/* ── Close mobile nav on link click ── */
-function initMobileNavClose() {
-  document.querySelectorAll('.mobile-nav a, .mobile-nav-link, .mobile-nav-sub').forEach(function(link) {
-    link.addEventListener('click', closeMobileNav);
-  });
-}
-
-/* ── Sticky header shadow ── */
+/* ── Sticky header shadow ──────────────────────────────────── */
 function initHeaderScroll() {
-  var header = document.querySelector('.site-header, .sticky-nav');
+  const header = document.querySelector('.site-header');
   if (!header) return;
-  window.addEventListener('scroll', function() {
-    header.style.boxShadow = window.scrollY > 10
-      ? '0 4px 24px rgba(232,0,92,0.1)'
-      : '';
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 10);
   }, { passive: true });
 }
 
-/* ── Init ── */
-document.addEventListener('DOMContentLoaded', function() {
-  updateAffiliateLinks();
+/* ── Close dropdowns on outside click ─────────────────────── */
+function initOutsideClick() {
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.dropdown') && !e.target.closest('[data-dropdown]')) {
+      closeAllDropdowns();
+    }
+  });
+}
+
+/* ── Update affiliate links ────────────────────────────────── */
+function updateAffiliateLinks() {
+  document.querySelectorAll('a[href*="amigoesim.pxf.io"]').forEach(a => {
+    a.href = AFFILIATE_URL;
+  });
+}
+
+/* ── Rating bar animation ──────────────────────────────────── */
+function initRatingBars() {
+  document.querySelectorAll('.bar-fill, .mock-score-bar-fill').forEach(bar => {
+    const w = bar.style.width;
+    bar.style.width = '0';
+    setTimeout(() => { bar.style.width = w; }, 300);
+  });
+}
+
+/* ── INIT ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initFAQ();
   setActiveNav();
   initReveal();
   initSmoothScroll();
-  initMobileNavClose();
   initHeaderScroll();
+  initOutsideClick();
+  updateAffiliateLinks();
+  initRatingBars();
+
+  /* Hamburger */
+  const ham = document.getElementById('hamburger');
+  if (ham) ham.addEventListener('click', toggleMobileNav);
+
+  /* Mobile nav close on link click */
+  document.querySelectorAll('#mobileNav a').forEach(a => {
+    a.addEventListener('click', closeMobileNav);
+  });
+
+  /* Copy buttons */
+  document.querySelectorAll('.coupon-copy, .deal-card-footer-copy, .pill-copy').forEach(btn => {
+    btn.addEventListener('click', () => copyCode(btn.dataset.code || COUPON_CODE, btn));
+  });
 });
