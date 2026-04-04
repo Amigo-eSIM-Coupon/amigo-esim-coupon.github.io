@@ -1,87 +1,83 @@
 /* ============================================================
    AMIGO eSIM — Global JS
-   Matches SPA function names exactly:
-   copyCode(), toggleDropdown(), closeDropdown(),
-   toggleMobileNav(), closeMobileNav(), setActiveNav(),
-   initReveal(), initSmoothScroll()
+   New affiliate link: https://esimbros.com/go/amigo-esim
    ============================================================ */
 
-/* ── Copy code to clipboard ── */
-function copyCode(elementId, btn) {
-  // Handle both (elementId, btn) and (codeString, btn) signatures
-  var text;
-  var el = document.getElementById(elementId);
-  if (el) {
-    text = el.innerText || el.textContent;
-  } else {
-    // elementId is actually the code string directly
-    text = elementId;
-  }
-  text = text.trim();
+var AFFILIATE_URL = 'https://esimbros.com/go/amigo-esim';
 
-  navigator.clipboard.writeText(text).then(function() {
-    if (btn) {
-      var orig = btn.textContent;
-      var origBg   = btn.style.background;
-      var origColor= btn.style.color;
-      var origBorder = btn.style.borderColor;
-      btn.textContent = '✓ Copied!';
-      btn.style.background   = '#e8005c';
-      btn.style.color        = '#fff';
-      btn.style.borderColor  = '#e8005c';
-      setTimeout(function() {
-        btn.textContent      = orig;
-        btn.style.background  = origBg;
-        btn.style.color       = origColor;
-        btn.style.borderColor = origBorder;
-      }, 1800);
+/* ── Update all affiliate links on page load ── */
+function updateAffiliateLinks() {
+  document.querySelectorAll('a[href*="amigoesim.pxf.io"], a[href*="amigo-esim"]').forEach(function(a) {
+    if (a.href && a.href.indexOf('esimbros.com') === -1) {
+      a.href = AFFILIATE_URL;
     }
+  });
+}
+
+/* ── Copy coupon code ── */
+function copyCode(codeOrId, btn) {
+  var text;
+  var el = document.getElementById(codeOrId);
+  if (el) {
+    text = (el.innerText || el.textContent).trim();
+  } else {
+    text = String(codeOrId).trim();
+  }
+  navigator.clipboard.writeText(text).then(function() {
+    if (!btn) return;
+    var orig = btn.textContent;
+    var origBg = btn.style.background;
+    var origColor = btn.style.color;
+    var origBorder = btn.style.borderColor;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#e8005c';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#e8005c';
+    setTimeout(function() {
+      btn.textContent = orig;
+      btn.style.background = origBg;
+      btn.style.color = origColor;
+      btn.style.borderColor = origBorder;
+    }, 1800);
   }).catch(function() {
     if (el) {
-      var range = document.createRange();
-      range.selectNode(el);
+      var r = document.createRange();
+      r.selectNode(el);
       window.getSelection().removeAllRanges();
-      window.getSelection().addRange(range);
+      window.getSelection().addRange(r);
       document.execCommand('copy');
       window.getSelection().removeAllRanges();
     }
   });
 }
 
-/* ── Guides dropdown toggle ── */
+/* ── Guides dropdown ── */
 function toggleDropdown(event) {
   if (event) event.stopPropagation();
-  var dd     = document.getElementById('dropdownMenu') ||
-               document.getElementById('guidesDropdown');
-  var toggle = document.querySelector('.dropdown-toggle') ||
-               document.querySelector('.hnav-dropdown-btn');
+  var dd = document.getElementById('dropdownMenu') || document.getElementById('guidesDropdown');
+  var toggle = document.querySelector('.dropdown-toggle, .hnav-dropdown-btn');
   if (!dd) return;
   var open = dd.classList.toggle('open');
   if (toggle) toggle.classList.toggle('active', open);
 }
 function closeDropdown() {
-  var dd     = document.getElementById('dropdownMenu') ||
-               document.getElementById('guidesDropdown');
-  var toggle = document.querySelector('.dropdown-toggle') ||
-               document.querySelector('.hnav-dropdown-btn');
-  if (dd)     dd.classList.remove('open');
+  var dd = document.getElementById('dropdownMenu') || document.getElementById('guidesDropdown');
+  var toggle = document.querySelector('.dropdown-toggle, .hnav-dropdown-btn');
+  if (dd) dd.classList.remove('open');
   if (toggle) toggle.classList.remove('active');
 }
-
-/* Close dropdown on outside click */
 document.addEventListener('click', function(e) {
-  var dropdown = document.querySelector('.nav-dropdown') ||
-                 document.querySelector('.hnav-dropdown');
+  var dropdown = document.querySelector('.nav-dropdown, .hnav-dropdown');
   if (dropdown && !dropdown.contains(e.target)) closeDropdown();
 });
 
-/* ── Mobile nav toggle ── */
+/* ── Mobile nav ── */
 function toggleMobileNav() {
   var nav = document.getElementById('mobileNav');
   var btn = document.getElementById('hamburger');
   if (!nav) return;
   var open = nav.classList.toggle('open');
-  if (btn) btn.querySelector('span:first-child') && (btn.textContent = open ? '✕' : '☰');
+  if (btn) btn.textContent = open ? '✕' : '☰';
 }
 function closeMobileNav() {
   var nav = document.getElementById('mobileNav');
@@ -90,32 +86,29 @@ function closeMobileNav() {
   if (btn && btn.tagName === 'BUTTON') btn.textContent = '☰';
 }
 
-/* ── Active nav link ── */
+/* ── Active nav ── */
 function setActiveNav() {
-  var path     = window.location.pathname;
+  var path = window.location.pathname;
   var filename = path.split('/').pop() || 'index.html';
-  var isGuide  = path.includes('/guides/');
-  var isBlog   = path.includes('/blog/');
+  var isGuide = path.includes('/guides/');
+  var isBlog = path.includes('/blog/');
 
-  document.querySelectorAll('.main-nav > a, .hnav-link[data-page]').forEach(function(link) {
+  document.querySelectorAll('.main-nav > a, .nav-links-row .nav-pill, .hnav-link[data-page]').forEach(function(link) {
     link.classList.remove('active');
     var href = link.getAttribute('href') || link.dataset.page || '';
     var hFile = href.split('/').pop();
-
     if (hFile === filename && !isBlog && !isGuide) link.classList.add('active');
     if ((isBlog || isGuide) && (href.includes('blog') || href === 'blog/index.html')) link.classList.add('active');
   });
 
-  // Highlight guides dropdown toggle on guide pages
   if (isGuide) {
     var toggle = document.querySelector('.dropdown-toggle, .hnav-dropdown-btn');
     if (toggle) toggle.classList.add('active');
   }
 
-  // Highlight active item inside dropdown
   document.querySelectorAll('.dropdown-menu a, .hnav-dropdown-item').forEach(function(link) {
     link.classList.remove('active');
-    var href  = link.getAttribute('href') || '';
+    var href = link.getAttribute('href') || '';
     var hFile = href.split('/').pop();
     if (hFile === filename) link.classList.add('active');
   });
@@ -136,15 +129,14 @@ function initReveal() {
   items.forEach(function(el) { observer.observe(el); });
 }
 
-/* ── Smooth scroll for anchor links ── */
+/* ── Smooth scroll ── */
 function initSmoothScroll() {
   document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
     anchor.addEventListener('click', function(e) {
       var target = document.querySelector(anchor.getAttribute('href'));
       if (target) {
         e.preventDefault();
-        var offset = 70;
-        var top = target.getBoundingClientRect().top + window.scrollY - offset;
+        var top = target.getBoundingClientRect().top + window.scrollY - 70;
         window.scrollTo({ top: top, behavior: 'smooth' });
       }
     });
@@ -160,7 +152,7 @@ function initMobileNavClose() {
 
 /* ── Sticky header shadow ── */
 function initHeaderScroll() {
-  var header = document.querySelector('.site-header');
+  var header = document.querySelector('.site-header, .sticky-nav');
   if (!header) return;
   window.addEventListener('scroll', function() {
     header.style.boxShadow = window.scrollY > 10
@@ -169,8 +161,9 @@ function initHeaderScroll() {
   }, { passive: true });
 }
 
-/* ── Init on DOM ready ── */
+/* ── Init ── */
 document.addEventListener('DOMContentLoaded', function() {
+  updateAffiliateLinks();
   setActiveNav();
   initReveal();
   initSmoothScroll();
