@@ -1,349 +1,451 @@
 /* ============================================================
-   AMIGO eSIM — app.js
-   Handles: SPA navigation + legacy separate HTML pages
+   AMIGO ESIM — Unified JavaScript
+   Works for: SPA (amigo-index.html) + all static pages
    ============================================================ */
 
+'use strict';
+
+/* ----------------------------------------------------------
+   CONSTANTS
+   ---------------------------------------------------------- */
 const AFFILIATE_URL = 'https://esimbros.com/go/amigo-esim';
 const COUPON_CODE   = 'ESIMDUDE';
 
-/* ── Copy coupon code ──────────────────────────────────────── */
-function copyCode(codeOrId, btn) {
-  var text;
+/* ----------------------------------------------------------
+   UTILITY: detect whether we're in SPA or static page
+   ---------------------------------------------------------- */
+const IS_SPA = !!document.querySelector('.page-section');
 
-  /* Handle legacy usage: copyCode('elementId') — gets text from element */
-  if (btn === undefined) {
-    var el = document.getElementById(codeOrId);
-    text = el ? el.textContent.trim() : codeOrId;
-    btn = null;
-  } else {
-    /* SPA usage: copyCode('ESIMDUDE', buttonElement) */
-    text = (typeof codeOrId === 'string') ? codeOrId : COUPON_CODE;
-  }
+/* ----------------------------------------------------------
+   1. AFFILIATE LINK REWRITER
+   Replaces any old affiliate URLs with the new one.
+   ---------------------------------------------------------- */
+function rewriteAffiliateLinks() {
+  const OLD_PATTERNS = [
+    'amigoesim.pxf.io',
+    'amigo-esim.pxf.io',
+    'amigoesim.com/go',
+    'go.amigo'
+  ];
 
-  var doFeedback = function(button) {
-    if (!button) return;
-    var orig = button.textContent;
-    var origBg = button.style.background;
-    var origColor = button.style.color;
-    var origBorder = button.style.borderColor;
-    button.textContent = '✓ Copied!';
-    button.style.background = '#e8005c';
-    button.style.color = '#fff';
-    button.style.borderColor = '#e8005c';
-    setTimeout(function() {
-      button.textContent = orig;
-      button.style.background = origBg;
-      button.style.color = origColor;
-      button.style.borderColor = origBorder;
-    }, 1800);
-  };
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function() {
-      doFeedback(btn);
-    }).catch(function() {
-      fallbackCopy(text);
-      doFeedback(btn);
-    });
-  } else {
-    fallbackCopy(text);
-    doFeedback(btn);
-  }
-}
-
-function fallbackCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); } catch(e) {}
-  document.body.removeChild(ta);
-}
-
-/* ── SPA: Guides dropdown ──────────────────────────────────── */
-function toggleDropdown(event) {
-  if (event) event.stopPropagation();
-  var dd = document.getElementById('guidesDropdown');
-  if (dd) dd.classList.toggle('open');
-}
-
-function closeDropdown() {
-  var dd = document.getElementById('guidesDropdown');
-  if (dd) dd.classList.remove('open');
-}
-
-/* ── Legacy pages: Guides dropdown ────────────────────────── */
-function toggleDropdownLegacy() {
-  var menu = document.getElementById('dropdownMenu');
-  if (menu) {
-    menu.classList.toggle('open');
-  }
-}
-
-/* ── SPA Mobile nav ────────────────────────────────────────── */
-function toggleMobileNav() {
-  var nav = document.getElementById('mobileNav');
-  if (!nav) return;
-  nav.classList.toggle('open');
-  document.body.style.overflow = nav.classList.contains('open') ? 'hidden' : '';
-}
-
-function closeMobileNav() {
-  var nav = document.getElementById('mobileNav');
-  if (nav) nav.classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-/* ── Legacy pages: Mobile nav ─────────────────────────────── */
-function toggleMobileNavLegacy() {
-  var nav = document.getElementById('mobileNav');
-  var ham = document.getElementById('hamburger');
-  if (!nav) return;
-  var isOpen = nav.style.display === 'flex';
-  nav.style.display = isOpen ? 'none' : 'flex';
-  if (ham) ham.textContent = isOpen ? '☰' : '✕';
-}
-
-/* ── SPA Navigation ────────────────────────────────────────── */
-function navigate(page) {
-  /* Only runs if page-sections exist (SPA mode) */
-  var sections = document.querySelectorAll('.page-section');
-  if (!sections.length) return;
-
-  sections.forEach(function(el) { el.classList.remove('active'); });
-  var target = document.getElementById('page-' + page);
-  if (target) target.classList.add('active');
-
-  /* Update nav active states */
-  document.querySelectorAll('.hnav-link[data-page]').forEach(function(el) {
-    el.classList.toggle('active', el.dataset.page === page);
-  });
-
-  var guideBtn = document.querySelector('.hnav-dropdown-btn');
-  var isGuide  = ['guide1','guide2','guide3'].indexOf(page) !== -1;
-  var isBlog   = ['blog','blog-esim-europe','blog-esim-japan','blog-esim-usa'].indexOf(page) !== -1;
-  var blogNav  = document.querySelector('.hnav-link[data-page="blog"]');
-  if (blogNav)  blogNav.classList.toggle('active', isBlog);
-  if (guideBtn) guideBtn.classList.toggle('active', isGuide);
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  setTimeout(runReveal, 100);
-
-  /* Update URL */
-  var slugMap = {
-    'home': '/', 'offer': '/offer', 'pricing': '/pricing', 'review': '/review',
-    'alternatives': '/alternatives', 'affiliate': '/affiliate', 'privacy': '/privacy',
-    'blog': '/blog',
-    'blog-esim-europe': '/blog/esim-europe',
-    'blog-esim-japan':  '/blog/esim-japan',
-    'blog-esim-usa':    '/blog/esim-usa',
-    'guide1': '/guide/activate-iphone-android',
-    'guide2': '/guide/esim-vs-roaming-vs-local-sim',
-    'guide3': '/guide/how-to-choose-right-plan'
-  };
-  var slug = slugMap[page] || '/' + page;
-  try { history.pushState({ page: page }, '', slug); } catch(e) {}
-}
-
-/* ── Scroll Reveal ─────────────────────────────────────────── */
-function runReveal() {
-  var selector = '.page-section.active .reveal, .page-section.active .reveal-left, .page-section.active .reveal-right';
-  var els = document.querySelectorAll(selector);
-
-  /* Fallback for non-SPA pages */
-  if (!els.length) {
-    els = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
-  }
-
-  if (!els.length) return;
-
-  var obs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) {
-        e.target.classList.add('visible');
-        obs.unobserve(e.target);
+  document.querySelectorAll('a[href]').forEach(link => {
+    const href = link.getAttribute('href');
+    if (OLD_PATTERNS.some(p => href.includes(p))) {
+      link.setAttribute('href', AFFILIATE_URL);
+      link.setAttribute('rel', 'nofollow noopener sponsored');
+      if (!link.hasAttribute('target')) {
+        link.setAttribute('target', '_blank');
       }
-    });
-  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
-
-  els.forEach(function(el) {
-    el.classList.remove('visible');
-    obs.observe(el);
-  });
-}
-
-/* ── Active nav for legacy pages ───────────────────────────── */
-function setActiveLegacyNav() {
-  var path = window.location.pathname;
-  document.querySelectorAll('.main-nav a').forEach(function(a) {
-    var href = a.getAttribute('href') || '';
-    if (href && href !== '#' && path.indexOf(href.replace('../', '')) !== -1) {
-      a.classList.add('active');
+    }
+    // Also tag existing correct affiliate links
+    if (href && href.includes('esimbros.com/go/amigo-esim')) {
+      link.setAttribute('rel', 'nofollow noopener sponsored');
     }
   });
 }
 
-/* ── Smooth scroll ─────────────────────────────────────────── */
-function initSmoothScroll() {
-  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
-    a.addEventListener('click', function(e) {
-      var target = document.querySelector(a.getAttribute('href'));
-      if (target) {
-        e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+/* ----------------------------------------------------------
+   2. COUPON CODE COPY
+   ---------------------------------------------------------- */
+function copyCode(target) {
+  let text = COUPON_CODE;
+
+  // target can be the code string itself or an element id
+  if (target && typeof target === 'string' && target !== COUPON_CODE) {
+    const el = document.getElementById(target);
+    if (el) text = el.textContent.trim();
+  }
+
+  const btn = event && event.currentTarget ? event.currentTarget : null;
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => flashCopied(btn));
+  } else {
+    // Fallback for older browsers / http
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    flashCopied(btn);
+  }
+}
+
+function flashCopied(btn) {
+  if (!btn) {
+    // Try to find whichever copy button was just clicked
+    btn = document.querySelector('.copy-btn, .btn-copy');
+  }
+  if (!btn) return;
+
+  const orig = btn.textContent;
+  btn.textContent = '✓ Copied!';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = orig;
+    btn.classList.remove('copied');
+  }, 2000);
+}
+
+// Expose globally for inline onclick= usage
+window.copyCode = function(target) {
+  // When called via inline onclick, 'event' is the click event
+  let text = COUPON_CODE;
+  if (target && typeof target === 'string') {
+    const el = document.getElementById(target);
+    if (el) text = el.textContent.trim();
+  }
+
+  // Find the closest button
+  let btn = null;
+  if (window.event) {
+    btn = window.event.target.closest('button') || window.event.target;
+  }
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => flashCopied(btn));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    flashCopied(btn);
+  }
+};
+
+/* ----------------------------------------------------------
+   3. SPA NAVIGATION
+   Only active when IS_SPA is true.
+   ---------------------------------------------------------- */
+const PAGE_SLUG_MAP = {
+  'home':             '/',
+  'review':           '/review',
+  'pricing':          '/pricing',
+  'alternatives':     '/alternatives',
+  'blog':             '/blog',
+  'blog-esim-europe': '/blog/best-esim-europe',
+  'blog-esim-japan':  '/blog/best-esim-japan',
+  'blog-esim-usa':    '/blog/best-esim-usa',
+  'guide-activate':   '/guides/activate-iphone-android',
+  'guide-vs-roaming': '/guides/esim-vs-roaming-vs-local-sim',
+  'guide-choose':     '/guides/how-to-choose-right-plan',
+  'disclosure':       '/disclosure',
+  'privacy':          '/privacy',
+};
+
+function navigate(pageId) {
+  if (!IS_SPA) return;
+
+  // Hide all page sections
+  document.querySelectorAll('.page-section').forEach(el => {
+    el.classList.remove('active');
+  });
+
+  // Show target page
+  const target = document.getElementById('page-' + pageId)
+               || document.querySelector('[data-page="' + pageId + '"]');
+  if (target) {
+    target.classList.add('active');
+  }
+
+  // Update nav active state
+  document.querySelectorAll('.nav-btn[data-page], .nav-btn[onclick]').forEach(btn => {
+    btn.classList.remove('active');
+    const btnPage = btn.getAttribute('data-page')
+                 || (btn.getAttribute('onclick') || '').match(/navigate\(['"]([^'"]+)['"]\)/)?.[1];
+    if (btnPage === pageId) btn.classList.add('active');
+  });
+
+  // Update URL without reload
+  const slug = PAGE_SLUG_MAP[pageId] || '/';
+  try { history.pushState({ page: pageId }, '', slug); } catch (_) {}
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Trigger reveal animations for new page
+  setTimeout(runReveal, 100);
+
+  // Animate rating bars on review page
+  if (pageId === 'review') {
+    setTimeout(animateRatingBars, 300);
+  }
+
+  // Close mobile nav if open
+  closeMobileNav();
+}
+
+// Expose globally
+window.navigate = navigate;
+
+/* ----------------------------------------------------------
+   4. MOBILE NAV TOGGLE (SPA + static)
+   ---------------------------------------------------------- */
+function openMobileNav() {
+  const nav = document.querySelector('.mobile-nav, .mobile-drawer');
+  if (nav) {
+    nav.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeMobileNav() {
+  const nav = document.querySelector('.mobile-nav, .mobile-drawer');
+  if (nav) {
+    nav.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+function toggleMobileNav() {
+  const nav = document.querySelector('.mobile-nav, .mobile-drawer');
+  if (nav && nav.classList.contains('open')) {
+    closeMobileNav();
+  } else {
+    openMobileNav();
+  }
+}
+
+window.toggleMobileNav = toggleMobileNav;
+window.closeMobileNav  = closeMobileNav;
+
+/* ----------------------------------------------------------
+   5. DROPDOWN MENUS (hover + click for touch)
+   ---------------------------------------------------------- */
+function initDropdowns() {
+  document.querySelectorAll('.spa-nav-dropdown, .nav-dropdown').forEach(dropdown => {
+    const btn = dropdown.querySelector('button, .nav-btn');
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = dropdown.classList.contains('open');
+        // Close all dropdowns first
+        document.querySelectorAll('.spa-nav-dropdown.open, .nav-dropdown.open').forEach(d => {
+          d.classList.remove('open');
+        });
+        if (!isOpen) dropdown.classList.add('open');
+      });
+    }
+  });
+
+  // Close on outside click
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.spa-nav-dropdown.open, .nav-dropdown.open').forEach(d => {
+      d.classList.remove('open');
     });
   });
 }
 
-/* ── Sticky header shadow ──────────────────────────────────── */
+/* ----------------------------------------------------------
+   6. FAQ ACCORDION
+   ---------------------------------------------------------- */
+function initFAQ() {
+  document.querySelectorAll('.faq-item').forEach(item => {
+    const q = item.querySelector('.faq-q, .faq-question');
+    if (!q) return;
+
+    q.addEventListener('click', () => {
+      const isOpen = item.classList.contains('open');
+      // Close all other items in same group
+      const group = item.closest('.faq-list, .faq-accordion');
+      if (group) {
+        group.querySelectorAll('.faq-item.open').forEach(openItem => {
+          if (openItem !== item) openItem.classList.remove('open');
+        });
+      }
+      item.classList.toggle('open', !isOpen);
+    });
+  });
+}
+
+/* ----------------------------------------------------------
+   7. DEVICE TABS (iPhone / Android)
+   ---------------------------------------------------------- */
+function initDeviceTabs() {
+  document.querySelectorAll('.device-tabs, .tab-group').forEach(tabGroup => {
+    const btns    = tabGroup.querySelectorAll('.tab-btn, .device-tab');
+    const section = tabGroup.closest('section') || tabGroup.parentElement;
+
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-tab') || btn.getAttribute('data-target');
+
+        // Update active button
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Show matching content
+        const contents = section ? section.querySelectorAll('.tab-content, .device-content') : [];
+        contents.forEach(c => {
+          c.classList.remove('active');
+          if (c.getAttribute('data-tab') === target || c.id === target) {
+            c.classList.add('active');
+          }
+        });
+      });
+    });
+  });
+}
+
+/* ----------------------------------------------------------
+   8. SCROLL REVEAL
+   ---------------------------------------------------------- */
+function runReveal() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal:not(.visible)').forEach(el => {
+    observer.observe(el);
+  });
+}
+
+/* ----------------------------------------------------------
+   9. RATING BAR ANIMATION
+   ---------------------------------------------------------- */
+function animateRatingBars() {
+  document.querySelectorAll('.bar-fill').forEach(bar => {
+    const targetWidth = bar.getAttribute('data-width') || bar.style.width || '0%';
+    bar.style.width = '0%';
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        bar.style.width = targetWidth;
+      }, 50);
+    });
+  });
+}
+
+/* ----------------------------------------------------------
+   10. HEADER SCROLL SHADOW
+   ---------------------------------------------------------- */
 function initHeaderScroll() {
-  var header = document.querySelector('.site-header, .global-header');
+  const header = document.querySelector('.spa-header, .site-header, .main-nav');
   if (!header) return;
-  window.addEventListener('scroll', function() {
+
+  window.addEventListener('scroll', () => {
     if (window.scrollY > 10) {
-      header.style.boxShadow = '0 2px 20px rgba(0,0,0,0.08)';
+      header.style.boxShadow = '0 2px 20px rgba(0,0,0,.08)';
     } else {
       header.style.boxShadow = '';
     }
   }, { passive: true });
 }
 
-/* ── Close dropdowns on outside click ─────────────────────── */
-function initOutsideClick() {
-  document.addEventListener('click', function(e) {
-    /* SPA dropdown */
-    var spa = document.getElementById('guidesDropdown');
-    if (spa && !spa.contains(e.target)) closeDropdown();
+/* ----------------------------------------------------------
+   11. ACTIVE NAV LINK (static pages only)
+   ---------------------------------------------------------- */
+function initActiveNavLink() {
+  if (IS_SPA) return;
 
-    /* Legacy dropdown */
-    var leg = document.querySelector('.nav-dropdown');
-    if (leg && !leg.contains(e.target)) {
-      var menu = document.getElementById('dropdownMenu');
-      if (menu) menu.classList.remove('open');
+  const path = window.location.pathname;
+  document.querySelectorAll('.hnav-link, .header-nav a, .nav-link').forEach(link => {
+    const href = link.getAttribute('href');
+    if (!href) return;
+
+    if (path === href || (href !== '/' && path.startsWith(href.replace(/\.html$/, '')))) {
+      link.classList.add('active');
     }
   });
 }
 
-/* ── Update affiliate links ────────────────────────────────── */
-function updateAffiliateLinks() {
-  document.querySelectorAll('a[href*="amigoesim.pxf.io"]').forEach(function(a) {
-    a.href = AFFILIATE_URL;
-  });
-}
-
-/* ── Rating bar animation ──────────────────────────────────── */
-function initRatingBars() {
-  document.querySelectorAll('.rating-fill').forEach(function(bar) {
-    var w = bar.style.width;
-    bar.style.width = '0';
-    setTimeout(function() { bar.style.width = w; }, 400);
-  });
-}
-
-/* ── Mobile nav for LEGACY pages ───────────────────────────── */
-function initLegacyMobileNav() {
-  var ham = document.getElementById('hamburger');
-  var nav = document.getElementById('mobileNav');
-  if (!ham || !nav) return;
-
-  /* Legacy pages use ☰ text button, not span-based */
-  if (ham.tagName === 'BUTTON' && !ham.querySelector('span')) {
-    ham.addEventListener('click', function() {
-      var isOpen = nav.classList.contains('open');
-      nav.classList.toggle('open', !isOpen);
-      ham.textContent = isOpen ? '☰' : '✕';
+/* ----------------------------------------------------------
+   12. SMOOTH SCROLL for anchor links
+   ---------------------------------------------------------- */
+function initSmoothScroll() {
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const targetId = link.getAttribute('href').slice(1);
+      const target   = document.getElementById(targetId);
+      if (target) {
+        e.preventDefault();
+        const headerH = parseInt(getComputedStyle(document.documentElement)
+                          .getPropertyValue('--header-h')) || 68;
+        const top = target.getBoundingClientRect().top + window.scrollY - headerH - 16;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
     });
-  }
+  });
 }
 
-/* ── SPA Init ──────────────────────────────────────────────── */
-function initSPA() {
-  var sections = document.querySelectorAll('.page-section');
-  if (!sections.length) return; /* Not an SPA page */
+/* ----------------------------------------------------------
+   13. MOBILE NAV OVERLAY — close on backdrop click
+   ---------------------------------------------------------- */
+function initMobileNavClose() {
+  const nav = document.querySelector('.mobile-nav, .mobile-drawer');
+  if (!nav) return;
 
-  /* Hamburger for SPA */
-  var ham = document.getElementById('hamburger');
-  if (ham) {
-    ham.addEventListener('click', toggleMobileNav);
-  }
-
-  /* Mobile nav close on link click */
-  document.querySelectorAll('#mobileNav .mobile-nav-link, #mobileNav .mobile-nav-sub').forEach(function(a) {
-    a.addEventListener('click', closeMobileNav);
+  nav.addEventListener('click', (e) => {
+    if (e.target === nav) closeMobileNav();
   });
 
-  /* Determine page from URL */
-  var reverseSlugMap = {
-    '': 'home', '/': 'home',
-    '/home': 'home', '/offer': 'offer', '/pricing': 'pricing',
-    '/review': 'review', '/alternatives': 'alternatives',
-    '/affiliate': 'affiliate', '/privacy': 'privacy',
-    '/blog': 'blog',
-    '/blog/esim-europe': 'blog-esim-europe',
-    '/blog/esim-japan':  'blog-esim-japan',
-    '/blog/esim-usa':    'blog-esim-usa',
-    '/guide/activate-iphone-android': 'guide1',
-    '/guide/esim-vs-roaming-vs-local-sim': 'guide2',
-    '/guide/how-to-choose-right-plan': 'guide3'
-  };
+  const closeBtn = nav.querySelector('.close-btn');
+  if (closeBtn) closeBtn.addEventListener('click', closeMobileNav);
 
-  var legacyMap = {
-    'guide1': 'guide1', 'guide2': 'guide2', 'guide3': 'guide3',
-    'blog-esim-europe': 'blog-esim-europe',
-    'blog-esim-japan': 'blog-esim-japan',
-    'blog-esim-usa': 'blog-esim-usa'
-  };
+  const hamburger = document.querySelector('.mobile-menu-btn, .hamburger, .mobile-toggle');
+  if (hamburger) hamburger.addEventListener('click', toggleMobileNav);
+}
 
-  var simplePages = ['home','offer','pricing','review','alternatives','affiliate','privacy','blog'];
+/* ----------------------------------------------------------
+   14. POPSTATE — handle browser back/forward in SPA
+   ---------------------------------------------------------- */
+function initPopstate() {
+  if (!IS_SPA) return;
 
-  function getPageFromURL() {
-    var pathname = window.location.pathname.replace(/\.html?$/, '');
-    if (reverseSlugMap[pathname]) return reverseSlugMap[pathname];
-    var flat = pathname.replace(/^\//, '');
-    if (simplePages.indexOf(flat) !== -1) return flat;
-    if (legacyMap[flat]) return legacyMap[flat];
-    var hash = window.location.hash.replace('#', '');
-    if (hash) {
-      if (simplePages.indexOf(hash) !== -1) return hash;
-      if (legacyMap[hash]) return legacyMap[hash];
+  window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.page) {
+      navigate(e.state.page);
+    } else {
+      navigate('home');
     }
-    return 'home';
-  }
-
-  navigate(getPageFromURL());
-
-  window.addEventListener('popstate', function(e) {
-    navigate(e.state && e.state.page ? e.state.page : getPageFromURL());
   });
 }
 
-/* ── INIT ──────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', function() {
-  /* Universal */
-  updateAffiliateLinks();
-  initSmoothScroll();
+/* ----------------------------------------------------------
+   INIT — run everything on DOM ready
+   ---------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+  rewriteAffiliateLinks();
+  initDropdowns();
+  initFAQ();
+  initDeviceTabs();
   initHeaderScroll();
-  initOutsideClick();
-  initRatingBars();
-  setActiveLegacyNav();
-  initLegacyMobileNav();
+  initActiveNavLink();
+  initSmoothScroll();
+  initMobileNavClose();
+  initPopstate();
 
-  /* Copy buttons — both pill-copy, coupon-copy, deal-card-footer-copy */
-  document.querySelectorAll('.coupon-copy, .pill-copy, .deal-card-footer-copy').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      copyCode(btn.dataset.code || COUPON_CODE, btn);
+  // Initial reveal pass
+  runReveal();
+
+  // Animate rating bars if on review page or review section is visible
+  if (document.querySelector('.bar-fill')) {
+    setTimeout(animateRatingBars, 400);
+  }
+
+  // SPA: activate home page by default if nothing is active
+  if (IS_SPA) {
+    const hasActive = document.querySelector('.page-section.active');
+    if (!hasActive) {
+      const home = document.getElementById('page-home')
+                 || document.querySelector('.page-section');
+      if (home) home.classList.add('active');
+    }
+
+    // Mark home nav button as active
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      const page = btn.getAttribute('data-page')
+                || (btn.getAttribute('onclick') || '').match(/navigate\(['"]([^'"]+)['"]\)/)?.[1];
+      if (page === 'home') btn.classList.add('active');
     });
-  });
-
-  /* SPA init (only runs on amigo-index.html) */
-  initSPA();
-
-  /* Non-SPA reveal (runs on legacy pages) */
-  var hasSPA = document.querySelectorAll('.page-section').length > 0;
-  if (!hasSPA) {
-    runReveal();
   }
 });
