@@ -1,203 +1,194 @@
 /* ============================================================
-   AMIGO eSIM — GLOBAL JAVASCRIPT
-   SPA navigation, scroll reveal, copy-to-clipboard, mobile nav,
-   dropdown, URL routing, popstate (browser back/forward)
+   AMIGO eSIM — app.js (for separate HTML pages only)
+   The SPA uses its own inline script — this file handles
+   the standalone pages: review.html, pricing.html, etc.
    ============================================================ */
 
-// ── URL SLUG MAPS ──────────────────────────────────────────
-var slugMap = {
-  'home'           : '/',
-  'offer'          : '/offer',
-  'pricing'        : '/pricing',
-  'review'         : '/review',
-  'alternatives'   : '/alternatives',
-  'affiliate'      : '/affiliate',
-  'privacy'        : '/privacy',
-  'blog'           : '/blog',
-  'blog-esim-europe': '/blog/esim-europe',
-  'blog-esim-japan' : '/blog/esim-japan',
-  'blog-esim-usa'   : '/blog/esim-usa',
-  'guide1'         : '/guide/activate-iphone-android',
-  'guide2'         : '/guide/esim-vs-roaming-vs-local-sim',
-  'guide3'         : '/guide/how-to-choose-right-plan'
-};
+const AFFILIATE_URL = 'https://esimbros.com/go/amigo-esim';
+const COUPON_CODE   = 'ESIMDUDE';
 
-var reverseSlugMap = {
-  ''                               : 'home',
-  '/'                              : 'home',
-  '/home'                          : 'home',
-  '/offer'                         : 'offer',
-  '/pricing'                       : 'pricing',
-  '/review'                        : 'review',
-  '/alternatives'                  : 'alternatives',
-  '/affiliate'                     : 'affiliate',
-  '/privacy'                       : 'privacy',
-  '/blog'                          : 'blog',
-  '/blog/esim-europe'              : 'blog-esim-europe',
-  '/blog/esim-japan'               : 'blog-esim-japan',
-  '/blog/esim-usa'                 : 'blog-esim-usa',
-  '/guide/activate-iphone-android' : 'guide1',
-  '/guide/esim-vs-roaming-vs-local-sim': 'guide2',
-  '/guide/how-to-choose-right-plan': 'guide3'
-};
+/* ── Copy coupon code ──────────────────────────────────────── */
+function copyCode(code, btn) {
+  const codeVal = (typeof code === 'string') ? code : COUPON_CODE;
+  const button  = btn || (typeof code === 'object' ? code : null);
+  navigator.clipboard.writeText(codeVal).then(() => {
+    if (button) {
+      const orig = button.textContent;
+      button.textContent = '✓ Copied!';
+      button.style.background = '#e8005c';
+      button.style.color = '#fff';
+      button.style.borderColor = '#e8005c';
+      setTimeout(() => {
+        button.textContent = orig;
+        button.style.background = '';
+        button.style.color = '';
+        button.style.borderColor = '';
+      }, 1800);
+    }
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = codeVal;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
 
-// Legacy flat slugs for old bookmarks (/guide1, /blog-esim-europe, etc.)
-var legacyMap = {
-  'guide1'          : 'guide1',
-  'guide2'          : 'guide2',
-  'guide3'          : 'guide3',
-  'blog-esim-europe': 'blog-esim-europe',
-  'blog-esim-japan' : 'blog-esim-japan',
-  'blog-esim-usa'   : 'blog-esim-usa'
-};
-
-var simplePages = ['home','offer','pricing','review','alternatives','affiliate','privacy','blog'];
-
-// ── ROUTING: URL → page name ───────────────────────────────
-function getPageFromURL() {
-  var pathname = window.location.pathname.replace(/\.html?$/, '');
-
-  // 1. Exact match on full pathname
-  if (reverseSlugMap[pathname]) return reverseSlugMap[pathname];
-
-  // 2. Simple single-segment: /pricing → pricing
-  var flat = pathname.replace(/^\//, '');
-  if (simplePages.includes(flat)) return flat;
-
-  // 3. Legacy flat slugs
-  if (legacyMap[flat]) return legacyMap[flat];
-
-  // 4. Hash fallback for very old bookmarks
-  var hash = window.location.hash.replace('#', '');
-  if (hash) {
-    if (simplePages.includes(hash)) return hash;
-    if (legacyMap[hash]) return legacyMap[hash];
+/* ── Dropdown toggle ───────────────────────────────────────── */
+function toggleDropdown(id) {
+  const menu   = document.getElementById(id);
+  const toggle = document.querySelector(`[data-dropdown="${id}"]`);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    menu.classList.add('open');
+    if (toggle) toggle.classList.add('open');
   }
-
-  return 'home';
 }
 
-// ── SPA NAVIGATION ─────────────────────────────────────────
-function navigate(page) {
-  // Hide all sections, show target
-  document.querySelectorAll('.page-section').forEach(function(el) {
-    el.classList.remove('active');
-  });
-  var target = document.getElementById('page-' + page);
-  if (target) target.classList.add('active');
-
-  // Update nav active states
-  document.querySelectorAll('.hnav-link[data-page]').forEach(function(el) {
-    el.classList.toggle('active', el.dataset.page === page);
-  });
-
-  // Guides dropdown button active state
-  var guideBtn  = document.querySelector('.hnav-dropdown-btn');
-  var isGuide   = ['guide1','guide2','guide3'].includes(page);
-  var isBlog    = ['blog','blog-esim-europe','blog-esim-japan','blog-esim-usa'].includes(page);
-  var blogNav   = document.querySelector('.hnav-link[data-page="blog"]');
-  if (blogNav)  blogNav.classList.toggle('active', isBlog);
-  if (guideBtn) guideBtn.classList.toggle('active', isGuide);
-
-  // Scroll to top
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  // Re-run scroll reveal for newly active page
-  setTimeout(runReveal, 100);
-
-  // Push URL
-  var slug = slugMap[page] || '/' + page;
-  try { history.pushState({ page: page }, '', slug); } catch(e) {}
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.dropdown-toggle').forEach(t => t.classList.remove('open'));
 }
 
-// ── DROPDOWN (Guides menu) ─────────────────────────────────
-function toggleDropdown(event) {
-  event.stopPropagation();
-  var dd = document.getElementById('guidesDropdown');
-  if (dd) dd.classList.toggle('open');
-}
-
-function closeDropdown() {
-  var dd = document.getElementById('guidesDropdown');
-  if (dd) dd.classList.remove('open');
-}
-
-// Close dropdown on outside click
-document.addEventListener('click', function(e) {
-  var dd = document.getElementById('guidesDropdown');
-  if (dd && !dd.contains(e.target)) closeDropdown();
-});
-
-// ── MOBILE NAV ─────────────────────────────────────────────
+/* ── Mobile nav ────────────────────────────────────────────── */
 function toggleMobileNav() {
-  var nav = document.getElementById('mobileNav');
-  if (nav) nav.classList.toggle('open');
+  const nav = document.getElementById('mobileNav');
+  const ham = document.getElementById('hamburger');
+  if (!nav) return;
+  const isOpen = nav.classList.contains('open');
+  nav.classList.toggle('open', !isOpen);
+  if (ham) ham.classList.toggle('open', !isOpen);
+  document.body.style.overflow = isOpen ? '' : 'hidden';
 }
 
 function closeMobileNav() {
-  var nav = document.getElementById('mobileNav');
+  const nav = document.getElementById('mobileNav');
+  const ham = document.getElementById('hamburger');
   if (nav) nav.classList.remove('open');
+  if (ham) ham.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
-// ── COPY TO CLIPBOARD ──────────────────────────────────────
-function copyCode(code, btn) {
-  navigator.clipboard.writeText(code).then(function() {
-    var orig = btn.textContent;
-    btn.textContent = '✓ Copied!';
-    btn.style.background  = '#e8005c';
-    btn.style.color       = '#fff';
-    btn.style.borderColor = '#e8005c';
-    setTimeout(function() {
-      btn.textContent     = orig;
-      btn.style.background  = '';
-      btn.style.color       = '';
-      btn.style.borderColor = '';
-    }, 1800);
-  });
+/* ── Device tabs ───────────────────────────────────────────── */
+function switchTab(tabId) {
+  document.querySelectorAll('.device-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.device-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById(tabId);
+  const tab   = document.querySelector(`[data-tab="${tabId}"]`);
+  if (panel) panel.classList.add('active');
+  if (tab)   tab.classList.add('active');
 }
 
-// ── SCROLL REVEAL ──────────────────────────────────────────
-function runReveal() {
-  var obs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) e.target.classList.add('visible');
+/* ── FAQ accordion ─────────────────────────────────────────── */
+function initFAQ() {
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+      if (!isOpen) item.classList.add('open');
     });
-  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
-
-  // Observe all reveal elements inside the currently active page
-  document.querySelectorAll(
-    '.page-section.active .reveal, ' +
-    '.page-section.active .reveal-left, ' +
-    '.page-section.active .reveal-right'
-  ).forEach(function(el) {
-    el.classList.remove('visible');
-    obs.observe(el);
   });
 }
 
-// ── INIT ───────────────────────────────────────────────────
-(function init() {
-  // Handle 404.html SPA redirect query param (?p=/pricing)
-  var params = new URLSearchParams(window.location.search);
-  var redirectPath = params.get('p');
-  if (redirectPath) {
-    window.history.replaceState(null, '', redirectPath);
-  }
-
-  // /home → / canonical redirect
-  if (window.location.pathname === '/home') {
-    window.history.replaceState(null, '', '/');
-  }
-
-  // Navigate to the correct page based on current URL
-  navigate(getPageFromURL());
-
-  // Handle browser back / forward
-  window.addEventListener('popstate', function(e) {
-    if (e.state && e.state.page) {
-      navigate(e.state.page);
-    } else {
-      navigate(getPageFromURL());
+/* ── Active nav link ───────────────────────────────────────── */
+function setActiveNav() {
+  const path = window.location.pathname;
+  document.querySelectorAll('a.nav-pill, .dropdown-menu a, #mobileNav a').forEach(a => {
+    const href = a.getAttribute('href') || '';
+    if (href && path.endsWith(href.replace('../', '').replace('./', ''))) {
+      a.classList.add('active');
     }
   });
-})();
+}
+
+/* ── Reveal on scroll ──────────────────────────────────────── */
+function initReveal() {
+  const els = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+  if (!els.length) return;
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+  els.forEach(el => obs.observe(el));
+}
+
+/* ── Smooth scroll ─────────────────────────────────────────── */
+function initSmoothScroll() {
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+}
+
+/* ── Sticky header shadow ──────────────────────────────────── */
+function initHeaderScroll() {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 10);
+  }, { passive: true });
+}
+
+/* ── Close dropdowns on outside click ─────────────────────── */
+function initOutsideClick() {
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.dropdown') && !e.target.closest('[data-dropdown]')) {
+      closeAllDropdowns();
+    }
+  });
+}
+
+/* ── Update affiliate links ────────────────────────────────── */
+function updateAffiliateLinks() {
+  document.querySelectorAll('a[href*="amigoesim.pxf.io"]').forEach(a => {
+    a.href = AFFILIATE_URL;
+  });
+}
+
+/* ── Rating bar animation ──────────────────────────────────── */
+function initRatingBars() {
+  document.querySelectorAll('.bar-fill, .mock-score-bar-fill').forEach(bar => {
+    const w = bar.style.width;
+    bar.style.width = '0';
+    setTimeout(() => { bar.style.width = w; }, 300);
+  });
+}
+
+/* ── INIT ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initFAQ();
+  setActiveNav();
+  initReveal();
+  initSmoothScroll();
+  initHeaderScroll();
+  initOutsideClick();
+  updateAffiliateLinks();
+  initRatingBars();
+
+  /* Hamburger */
+  const ham = document.getElementById('hamburger');
+  if (ham) ham.addEventListener('click', toggleMobileNav);
+
+  /* Mobile nav close on link click */
+  document.querySelectorAll('#mobileNav a').forEach(a => {
+    a.addEventListener('click', closeMobileNav);
+  });
+
+  /* Copy buttons */
+  document.querySelectorAll('.coupon-copy, .deal-card-footer-copy, .pill-copy').forEach(btn => {
+    btn.addEventListener('click', () => copyCode(btn.dataset.code || COUPON_CODE, btn));
+  });
+});
